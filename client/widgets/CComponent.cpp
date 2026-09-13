@@ -52,12 +52,12 @@ CComponent::CComponent(ComponentType Type, ComponentSubType Subtype, const std::
 	init(Type, Subtype, std::nullopt, imageSize, font, Val);
 }
 
-CComponent::CComponent(const Component & c, ESize imageSize, EFonts font)
+CComponent::CComponent(const Component & c, ESize imageSize, EFonts font, const std::string & subtitle, bool wrapSubtitle)
 {
-	init(c.type, c.subType, c.value, imageSize, font, "");
+	init(c.type, c.subType, c.value, imageSize, font, subtitle, wrapSubtitle);
 }
 
-void CComponent::init(ComponentType Type, ComponentSubType Subtype, std::optional<int32_t> Val, ESize imageSize, EFonts fnt, const std::string & ValText)
+void CComponent::init(ComponentType Type, ComponentSubType Subtype, std::optional<int32_t> Val, ESize imageSize, EFonts fnt, const std::string & ValText, bool wrapSubtitle)
 {
 	OBJECT_CONSTRUCTION;
 
@@ -84,6 +84,24 @@ void CComponent::init(ComponentType Type, ComponentSubType Subtype, std::optiona
 
 	pos.h += 4; //distance between text and image
 
+	const auto & fontPtr = ENGINE->renderHandler().loadFont(font);
+	if(!wrapSubtitle)
+	{
+		const auto subtitle = getSubtitle();
+		if(subtitle.empty())
+			return;
+		// Reserve the full caption width before the popup lays out this card.
+		// A single label keeps status text and its closing bracket together.
+		const int textWidth = static_cast<int>(fontPtr->getStringWidth(subtitle)) - CTextContainer::getDelimitersWidth(font, subtitle);
+		const int cardWidth = std::max(pos.w, textWidth);
+		image->moveBy(Point((cardWidth - pos.w) / 2, 0));
+		pos.w = cardWidth;
+		const int height = static_cast<int>(fontPtr->getLineHeight());
+		lines.push_back(std::make_shared<CLabel>(pos.w / 2, pos.h + height / 2, font, ETextAlignment::CENTER, Colors::WHITE, subtitle));
+		pos.h += height;
+		return;
+	}
+
 	// WARNING: too low values will lead to bad line-breaks in CPlayerOptionTooltipBox - check right-click on starting town in pregame
 	int max = 80;
 	if (size < large)
@@ -96,7 +114,6 @@ void CComponent::init(ComponentType Type, ComponentSubType Subtype, std::optiona
 	if(Type == ComponentType::RESOURCE && !ValText.empty())
 		max = 80;
 
-	const auto & fontPtr = ENGINE->renderHandler().loadFont(font);
 	{
 		std::string s = getSubtitle();
 

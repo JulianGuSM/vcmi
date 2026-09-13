@@ -32,6 +32,122 @@ const IObjectInterface * CRewardableObject::getObject() const
 	return this;
 }
 
+bool CRewardableObject::hasBankPreview() const
+{
+	switch (ID)
+	{
+		case Obj::CREATURE_BANK:
+		case Obj::CRYPT:
+		case Obj::SHIPWRECK:
+		case Obj::DERELICT_SHIP:
+		case Obj::DRAGON_UTOPIA:
+		case Obj::PANDORAS_BOX:
+			return true;
+		default:
+			return false;
+	}
+}
+
+std::vector<ui32> CRewardableObject::getBankPreviewRewards(const CGHeroInstance * hero) const
+{
+	if (!hasBankPreview() || onceVisitableObjectCleared)
+		return {};
+
+	auto indices = getAvailableRewards(hero, Rewardable::EEventType::EVENT_FIRST_VISIT);
+	if (configuration.selectMode == Rewardable::SELECT_FIRST && indices.size() > 1)
+		indices.resize(1);
+	return indices;
+}
+
+BankPreview CRewardableObject::getBankPreview(const CGHeroInstance * hero) const
+{
+	BankPreview result;
+	if(!hasBankPreview())
+		return result;
+	result.selectMode = configuration.selectMode;
+	result.cleared = onceVisitableObjectCleared;
+	// Keep each real army slot, including repeated creature types, in its own card.
+	for(const auto & slot : Slots())
+		if(slot.second && slot.second->getCount() > 0)
+			result.guards.emplace_back(ComponentType::CREATURE, slot.second->getCreatureID(), slot.second->getCount());
+	for(const auto index : getBankPreviewRewards(hero))
+	{
+		const auto & reward = configuration.info.at(index).reward;
+		std::vector<Component> components;
+		reward.loadComponents(components, hero);
+		// The generic reward UI uses SPELL for scrolls too. Restore their type here
+		// so an artifact reward is not mistaken for a permanently learned spell.
+		for(const auto spell : reward.grantedScrolls)
+		{
+			const auto component = std::find_if(components.begin(), components.end(), [spell](const Component & entry)
+			{
+				return entry.type == ComponentType::SPELL && !entry.value && entry.subType.as<SpellID>() == spell;
+			});
+			if(component != components.end())
+				component->type = ComponentType::SPELL_SCROLL;
+		}
+		result.rewards.push_back(std::move(components));
+	}
+	return result;
+}
+
+bool CRewardableObject::hasLearningPreview() const
+{
+	return ID == Obj::WITCH_HUT || ID == Obj::SCHOLAR || ID == Obj::SHRINE_OF_MAGIC_INCANTATION
+		|| ID == Obj::SHRINE_OF_MAGIC_GESTURE || ID == Obj::SHRINE_OF_MAGIC_THOUGHT;
+}
+
+std::vector<Component> CRewardableObject::getLearningPreview() const
+{
+	std::vector<Component> result;
+	if(!hasLearningPreview())
+		return result;
+	std::set<SpellID> spells;
+	std::set<SecondarySkill> skills;
+	// Ignore hero eligibility: already knowing a spell or having no free skill
+	// slots must not hide what this site teaches. These are resolved map rolls.
+	auto indices = getAvailableRewards(nullptr, Rewardable::EEventType::EVENT_FIRST_VISIT);
+	// Scholars always keep a primary-skill fallback after their original offer.
+	// Do not present both entries as rewards that every hero will receive.
+	if(ID == Obj::SCHOLAR && configuration.selectMode == Rewardable::SELECT_FIRST && indices.size() > 1)
+		indices.resize(1);
+	for(const auto index : indices)
+	{
+		const auto & reward = configuration.info.at(index).reward;
+		if(ID == Obj::SCHOLAR)
+		{
+			for(size_t skill = 0; skill < reward.primary.size(); ++skill)
+				if(reward.primary[skill] != 0)
+					result.emplace_back(ComponentType::PRIM_SKILL, PrimarySkill(skill), reward.primary[skill]);
+		}
+		if(ID == Obj::WITCH_HUT || ID == Obj::SCHOLAR)
+		{
+			for(const auto & [skill, level] : reward.secondary)
+				if(level > 0 && skills.insert(skill).second)
+					result.emplace_back(ComponentType::SEC_SKILL, skill, std::clamp<int>(level, MasteryLevel::BASIC, MasteryLevel::EXPERT));
+		}
+		if(ID != Obj::WITCH_HUT)
+		{
+			for(const auto spell : reward.spells)
+				if(spells.insert(spell).second)
+					result.emplace_back(ComponentType::SPELL, spell);
+		}
+	}
+	return result;
+}
+
+std::vector<Component> CRewardableObject::getScholarFallbackPreview(const CGHeroInstance * hero) const
+{
+	std::vector<Component> result;
+	if(ID != Obj::SCHOLAR || !hero || configuration.selectMode != Rewardable::SELECT_FIRST)
+		return result;
+	const auto offers = getAvailableRewards(nullptr, Rewardable::EEventType::EVENT_FIRST_VISIT);
+	const auto eligible = getAvailableRewards(hero, Rewardable::EEventType::EVENT_FIRST_VISIT);
+	if(!offers.empty() && !eligible.empty() && offers.front() != eligible.front())
+		configuration.info.at(eligible.front()).reward.loadComponents(result, hero);
+	return result;
+}
+
 void CRewardableObject::markAsScouted(IGameEventCallback & gameEvents, const CGHeroInstance * hero) const
 {
 	ChangeObjectVisitors cov(ChangeObjectVisitors::VISITOR_ADD_PLAYER, id, hero->id);

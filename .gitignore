@@ -7,6 +7,7 @@
 /conan-*
 /result
 
+.build/
 build/
 .cache/*
 out/
@@ -77,4 +78,11 @@ compile_commands.json
 
 # CLion
 .idea/
+
+# Local development notes
+/docs/developers/Adventure_Previews.md
+/docs/developers/Adventure_Previews_Windows.zh-CN.md
+Compile-*.cmd
+Compile-*.ps1
+
 .qtcreator/

@@ -115,10 +115,19 @@ MetaString CGCreature::getPopupText(const CGHeroInstance * hero) const
 		hoverName = getHoverText(hero->tempOwner);
 	}
 
+	hoverName.append(getPreviewDescription(hero));
+	return hoverName;
+}
+
+MetaString CGCreature::getPreviewDescription(const CGHeroInstance * hero) const
+{
+	MetaString description;
 	if (settings["general"]["enableUiEnhancements"].Bool())
 	{
-		hoverName.append(getMonsterLevelText());
-		hoverName.appendTextID("vcmi.adventureMap.monsterThreat.title");
+		description.append(getMonsterLevelText());
+		if(!hero)
+			return description;
+		description.appendTextID("vcmi.adventureMap.monsterThreat.title");
 
 		int choice;
 		uint64_t armyStrength = getArmyStrength();
@@ -137,16 +146,38 @@ MetaString CGCreature::getPopupText(const CGHeroInstance * hero) const
 		else if (ratio < 20)   choice = 10;
 		else                   choice = 11;
 
-		hoverName.appendTextID("vcmi.adventureMap.monsterThreat.levels", choice);
+		description.appendTextID("vcmi.adventureMap.monsterThreat.levels", choice);
 	}
-	return hoverName;
+	return description;
+}
+
+MetaString CGCreature::getEncounterPreviewText(const CGHeroInstance * hero) const
+{
+	if(!hero)
+		return MetaString::createFromTextID("vcmi.adventureMap.preview.selectHeroForDisposition");
+
+	const int decision = takenAction(hero);
+	switch(decision)
+	{
+		case FIGHT:
+			return MetaString::createFromTextID("vcmi.adventureMap.preview.resist");
+		case FLEE:
+			return MetaString::createFromTextID("vcmi.adventureMap.preview.flee");
+		case JOIN_FOR_FREE:
+			return MetaString::createFromTextID("vcmi.adventureMap.preview.joinFree");
+		default:
+		{
+			auto result = MetaString::createFromTextID("vcmi.adventureMap.preview.joinForGold");
+			result.replaceNumber(decision);
+			return result;
+		}
+	}
 }
 
 MetaString CGCreature::getPopupText(PlayerColor player) const
 {
 	MetaString hoverName = getHoverText(player);
-	if (settings["general"]["enableUiEnhancements"].Bool())
-		hoverName.append(getMonsterLevelText());
+	hoverName.append(getPreviewDescription(nullptr));
 	return hoverName;
 }
 
@@ -611,6 +642,44 @@ int CGCreature::getNumberOfStacks(const CGHeroInstance * hero) const
 	vstd::amin(split, 7);   
 	vstd::amax(split, 1);
 	return split;
+}
+
+std::vector<CreaturePreviewStack> CGCreature::getBattlePreview(const CGHeroInstance * hero) const
+{
+	std::vector<CreaturePreviewStack> result;
+	// Without a hero, only an explicitly fixed formation can be predicted.
+	// If this object is already split, retain its actual slots as they are.
+	if(stacks.size() != 1 || !hasStackAtSlot(SlotID(0)) || (!hero && stacksCount <= 0))
+	{
+		for(const auto & slot : Slots())
+			if(slot.second && slot.second->getCount() > 0)
+				result.push_back({slot.second->getCreatureID(), slot.second->getCount(), false});
+		return result;
+	}
+
+	const TQuantity amount = getStackCount(SlotID(0));
+	if(amount <= 0)
+		return result;
+	const int groups = getNumberOfStacks(hero);
+	if(groups <= 0)
+		return result;
+	// Same distribution as fight(): the first remainder stacks get one extra unit.
+	for(int index = 0; index < groups; ++index)
+	{
+		const TQuantity count = amount / groups + (index < amount % groups ? 1 : 0);
+		if(count > 0)
+			result.push_back({getCreatureID(), count, false});
+	}
+	if(result.size() > 1 && containsUpgradedStack())
+	{
+		auto & middle = result[result.size() / 2];
+		const auto & upgrades = getCreature()->upgrades;
+		if(upgrades.size() == 1)
+			middle.type = *upgrades.begin();
+		else if(upgrades.size() > 1)
+			middle.randomUpgrade = true; // The server chooses the type when combat starts.
+	}
+	return result;
 }
 
 int CGCreature::getNumberOfStacksFromBonus(const CGHeroInstance * hero) const

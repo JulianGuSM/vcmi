@@ -13,6 +13,14 @@
 
 #include "../rewardable/Interface.h"
 
+struct DLL_LINKAGE BankPreview
+{
+	std::vector<Component> guards;
+	std::vector<std::vector<Component>> rewards;
+	Rewardable::ESelectMode selectMode = Rewardable::SELECT_FIRST;
+	bool cleared = false;
+};
+
 /// Base class that can handle granting rewards to visiting heroes.
 /// Inherits from CArmedInstance for proper transfer of armies
 class DLL_LINKAGE CRewardableObject : public CArmedInstance, public Rewardable::Interface
@@ -47,6 +55,18 @@ protected:
 	/// Returns true if this object is currently guarded
 	bool isGuarded() const;
 public:
+
+	/// Creature banks and Pandora's Boxes; other rewardable objects keep their own popup rules.
+	bool hasBankPreview() const;
+	/// Resolved, unclaimed first-visit rewards; no scouting or random draws.
+	std::vector<ui32> getBankPreviewRewards(const CGHeroInstance * hero) const;
+	BankPreview getBankPreview(const CGHeroInstance * hero) const;
+
+	/// Shrines, witch huts and scholars; preview their fixed contents even if already learned.
+	bool hasLearningPreview() const;
+	std::vector<Component> getLearningPreview() const;
+	/// Scholar's actual substitute reward when the selected hero cannot learn the original offer.
+	std::vector<Component> getScholarFallbackPreview(const CGHeroInstance * hero) const;
 
 	/// Visitability checks. Note that hero check includes check for hero owner (returns true if object was visited by player)
 	bool wasVisited(PlayerColor player) const override;
