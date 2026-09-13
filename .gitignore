@@ -84,3 +84,5 @@ compile_commands.json
 /docs/developers/Adventure_Previews_Windows.zh-CN.md
 Compile-*.cmd
 Compile-*.ps1
+
+.qtcreator/
