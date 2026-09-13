@@ -40,7 +40,7 @@ private:
 	std::vector<AnimationPath> getFileName() const;
 	void setSurface(const AnimationPath & defName, int imgPos);
 
-	void init(ComponentType Type, ComponentSubType Subtype, std::optional<int32_t> Val, ESize imageSize, EFonts font, const std::string & ValText);
+	void init(ComponentType Type, ComponentSubType Subtype, std::optional<int32_t> Val, ESize imageSize, EFonts font, const std::string & ValText, bool wrapSubtitle = true);
 
 public:
 	std::shared_ptr<CAnimImage> image;
@@ -55,7 +55,7 @@ public:
 
 	CComponent(ComponentType Type, ComponentSubType Subtype, std::optional<int32_t> Val = std::nullopt, ESize imageSize=large, EFonts font = FONT_SMALL);
 	CComponent(ComponentType Type, ComponentSubType Subtype, const std::string & Val, ESize imageSize=large, EFonts font = FONT_SMALL);
-	CComponent(const Component &c, ESize imageSize=large, EFonts font = FONT_SMALL);
+	CComponent(const Component &c, ESize imageSize=large, EFonts font = FONT_SMALL, const std::string & subtitle = "", bool wrapSubtitle = true);
 
 	void showPopupWindow(const Point & cursorPosition) override; //call-in
 };

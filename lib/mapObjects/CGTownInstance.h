@@ -21,6 +21,17 @@ struct TownFortifications;
 class TownRewardableBuildingInstance;
 struct DamageRange;
 
+/// Transient, read-only guild contents; the tail of the research pool is excluded.
+struct DLL_LINKAGE TownSpellPreviewLevel
+{
+	int level = 0;
+	bool built = false;
+	bool forbidden = false;
+	std::vector<SpellID> spells;
+	std::optional<SpellID> librarySpell;
+	bool libraryForbidden = false;
+};
+
 template<typename ContainedClass>
 class LogicalExpression;
 
@@ -180,6 +191,9 @@ public:
 	ResourceSet getBuildingCost(const BuildingID & buildingID) const;
 	ResourceSet dailyIncome() const override;
 	std::vector<CreatureID> providedCreatures() const override;
+
+	/// Read-only preview of the current guild spell rolls, including unbuilt levels.
+	std::vector<TownSpellPreviewLevel> getSpellPreview() const;
 
 	int spellsAtLevel(int level, bool checkGuild) const; //levels are counted from 1 (1 - 5)
 	bool armedGarrison() const; //true if town has creatures in garrison or garrisoned hero

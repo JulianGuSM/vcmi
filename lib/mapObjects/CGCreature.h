@@ -12,6 +12,13 @@
 #include "army/CArmedInstance.h"
 #include "../ResourceSet.h"
 
+struct DLL_LINKAGE CreaturePreviewStack
+{
+	CreatureID type;
+	TQuantity count = 0;
+	bool randomUpgrade = false;
+};
+
 class DLL_LINKAGE CGCreature : public CArmedInstance //creatures on map
 {
 public:
@@ -69,6 +76,12 @@ public:
 	//stack formation depends on position,
 	bool containsUpgradedStack() const;
 	int getNumberOfStacks(const CGHeroInstance *hero) const;
+	/// Read-only prediction of fight()'s formation for the selected hero; consumes no RNG.
+	std::vector<CreaturePreviewStack> getBattlePreview(const CGHeroInstance * hero) const;
+	/// Creature type and threat only, without a quantity range or Visions text.
+	MetaString getPreviewDescription(const CGHeroInstance * hero) const;
+	/// Uses the same decision and gold price as onHeroVisit(), without requiring Visions.
+	MetaString getEncounterPreviewText(const CGHeroInstance * hero) const;
 
 	template <typename Handler> void serialize(Handler &h)
 	{

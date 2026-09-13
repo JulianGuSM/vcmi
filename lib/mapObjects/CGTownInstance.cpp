@@ -282,6 +282,42 @@ CGTownInstance::CGTownInstance(IGameInfoCallback *cb):
 
 CGTownInstance::~CGTownInstance() = default;
 
+std::vector<TownSpellPreviewLevel> CGTownInstance::getSpellPreview() const
+{
+	std::vector<TownSpellPreviewLevel> result;
+	const bool aurora = hasBuilt(BuildingSubID::AURORA_BOREALIS);
+	bool blocked = false;
+	const int levels = aurora ? GameConstants::SPELL_LEVELS : getTown()->mageLevel;
+	const auto * library = getTown()->getSpecialBuilding(BuildingSubID::LIBRARY);
+	for(int index = 0; index < levels; ++index)
+	{
+		TownSpellPreviewLevel entry;
+		entry.level = index + 1;
+		const BuildingID building(BuildingID::MAGES_GUILD_1 + index);
+		blocked = blocked || (forbiddenBuildings.count(building) && !hasBuilt(building));
+		entry.built = aurora ? mageGuildLevel() > 0 : mageGuildLevel() >= entry.level;
+		entry.forbidden = !entry.built && (aurora ? forbiddenBuildings.count(BuildingID::MAGES_GUILD_1) != 0 : blocked);
+
+		// The tail contains spell-research alternatives, not spells taught by the guild.
+		if(aurora)
+			cb->gameState().getAllowedSpells(entry.spells, entry.level);
+		else if(index < spells.size())
+		{
+			const size_t count = std::min(spells[index].size(), static_cast<size_t>(std::max(0, spellsAtLevel(entry.level, false))));
+			entry.spells.assign(spells[index].begin(), spells[index].begin() + count);
+		}
+		// A future Library adds the next spell; keep it distinct from the current guild.
+		const size_t count = entry.spells.size();
+		if(!aurora && library && !hasBuilt(library->bid) && index < spells.size() && count < spells[index].size())
+		{
+			entry.librarySpell = spells[index][count];
+			entry.libraryForbidden = forbiddenBuildings.count(library->bid) != 0;
+		}
+		result.push_back(std::move(entry));
+	}
+	return result;
+}
+
 int CGTownInstance::spellsAtLevel(int level, bool checkGuild) const
 {
 	if(checkGuild && mageGuildLevel() < level)

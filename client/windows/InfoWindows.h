@@ -18,8 +18,12 @@ class CGTownInstance;
 class CGHeroInstance;
 class CGGarrison;
 class CGCreature;
+class CGBlackMarket;
+class CGArtifact;
 class CGTeleport;
 class CGObelisk;
+class CRewardableObject;
+struct Component;
 
 class CComponent;
 class CComponentBox;
@@ -105,12 +109,33 @@ public:
 class CInfoBoxPopup : public AdventureMapPopup
 {
 	std::shared_ptr<CIntObject> tooltip;
+	std::shared_ptr<CIntObject> spellContainer;
+	std::vector<std::shared_ptr<CIntObject>> spellWidgets;
 
 public:
 	CInfoBoxPopup(Point position, const CGTownInstance * town);
 	CInfoBoxPopup(Point position, const CGHeroInstance * hero);
 	CInfoBoxPopup(Point position, const CGGarrison * garr);
-	CInfoBoxPopup(Point position, const CGCreature * creature);
+};
+
+/// Read-only learning sites, bank guard/reward rows, and neutral encounter stacks.
+class CAdventureDetailsPopup : public AdventureMapPopup
+{
+	std::shared_ptr<FilledTexturePlayerColored> filledBackground;
+	std::vector<std::shared_ptr<CIntObject>> widgets;
+	int nextY = 12;
+
+	void initPreview(int preferredWidth);
+	void addText(const std::string & text, bool title = false);
+	void addComponents(const std::vector<Component> & components, bool largeIcons = false, const std::vector<std::string> & subtitles = {}, bool wrapSubtitles = true);
+	void addLearningComponents(const std::vector<Component> & components);
+	void finishPreview(Point position);
+
+public:
+	CAdventureDetailsPopup(Point position, const CRewardableObject * object);
+	CAdventureDetailsPopup(Point position, const CGCreature * creature);
+	CAdventureDetailsPopup(Point position, const CGBlackMarket * market);
+	CAdventureDetailsPopup(Point position, const CGArtifact * scroll);
 };
 
 /// component selection window
